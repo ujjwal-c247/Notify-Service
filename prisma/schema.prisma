@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum NotificationStatus {
+  CREATED
+  READY
+  PROCESSING
+  SENT
+  FAILED
+  RETRYING
+  EXPIRED
+  SUPPRESSED
+  DEAD_LETTER
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMATION
+}
+
+enum NotificationChannel {
+  EMAIL
+}
+
+model Booking {
+  id            String          @id @default(uuid())
+  tenantId      String
+  customerId    String
+  status        BookingStatus   @default(CONFIRMED)
+  version       Int             @default(1)
+  startAt       DateTime
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  notifications Notification[]
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([status])
+  @@map("bookings")
+}
+
+model OutboxEvent {
+  id               String    @id @default(uuid())
+  eventType        String
+  aggregateType    String
+  aggregateId      String
+  aggregateVersion Int
+  payload          Json
+  createdAt        DateTime  @default(now())
+  publishedAt      DateTime?
+  attemptCount     Int       @default(0)
+
+  @@index([publishedAt, createdAt])
+  @@index([aggregateId])
+  @@map("outbox_events")
+}
+
+model Notification {
+  id             String             @id @default(uuid())
+  tenantId       String
+  bookingId      String
+  bookingVersion Int
+  type           NotificationType
+  channel        NotificationChannel
+  status         NotificationStatus @default(CREATED)
+  dedupeKey      String             @unique
+  payload        Json
+  scheduledAt    DateTime?
+  expiresAt      DateTime?
+  attemptCount   Int                @default(0)
+  lastError      String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  sentAt         DateTime?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([status])
+  @@index([tenantId])
+  @@map("notifications")
+}
