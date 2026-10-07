@@ -50,4 +50,9 @@ export class TrafficSimulatorController {
   async verifyDedupe() {
     return this.simulatorService.verifyDuplicateEventDeduplication();
   }
+
+  @Get('verify/reminder')
+  async verifyReminder() {
+    return this.simulatorService.verifyReminderScheduling();
+  }
 }

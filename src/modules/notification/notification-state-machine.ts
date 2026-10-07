@@ -47,12 +47,12 @@ export class NotificationStateMachine {
   }
 
   static isTerminal(status: NotificationStatus): boolean {
-    return [
+    return ([
       NotificationStatus.SENT,
       NotificationStatus.FAILED,
       NotificationStatus.EXPIRED,
       NotificationStatus.SUPPRESSED,
       NotificationStatus.DEAD_LETTER,
-    ].includes(status);
+    ] as NotificationStatus[]).includes(status);
   }
 }

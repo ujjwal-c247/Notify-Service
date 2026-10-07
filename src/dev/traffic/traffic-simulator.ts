@@ -22,6 +22,8 @@ function parseArgs(): { options: Partial<TrafficSimulatorOptions>; verifyMode?: 
       options.delayMs = Number(arg.split('=')[1]);
     } else if (arg.startsWith('--failureRate=')) {
       options.failureRate = Number(arg.split('=')[1]);
+    } else if (arg.startsWith('--startAtOffsetMs=')) {
+      options.startAtOffsetMs = Number(arg.split('=')[1]);
     } else if (arg.startsWith('--verify=')) {
       verifyMode = arg.split('=')[1];
     }

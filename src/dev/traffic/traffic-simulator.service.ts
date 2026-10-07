@@ -74,7 +74,7 @@ export class TrafficSimulatorService {
       const tasks: (() => Promise<void>)[] = [];
       for (let i = 0; i < targetBookings; i++) {
         tasks.push(async () => {
-          const booking = await this.createBookingViaApi(config.apiUrl, tenantId, `customer-${i}`);
+          const booking = await this.createBookingViaApi(config.apiUrl, tenantId, `customer-${i}`, config.startAtOffsetMs);
           if (booking) {
             createdBookingIds.push(booking.id);
             const shouldCancel = (Math.random() * 100) < config.cancellationRate;
@@ -102,7 +102,7 @@ export class TrafficSimulatorService {
         for (let i = 0; i < currentBatch; i++) {
           const customerIdx = createdCount + i;
           tasks.push(async () => {
-            const booking = await this.createBookingViaApi(config.apiUrl, tenantId, `customer-${customerIdx}`);
+            const booking = await this.createBookingViaApi(config.apiUrl, tenantId, `customer-${customerIdx}`, config.startAtOffsetMs);
             if (booking) {
               createdBookingIds.push(booking.id);
               const shouldCancel = (Math.random() * 100) < config.cancellationRate;
@@ -139,7 +139,7 @@ export class TrafficSimulatorService {
     );
   }
 
-  private async createBookingViaApi(apiUrl: string, tenantId: string, customerId: string): Promise<{ id: string } | null> {
+  private async createBookingViaApi(apiUrl: string, tenantId: string, customerId: string, startAtOffsetMs?: number): Promise<{ id: string } | null> {
     try {
       const res = await fetch(`${apiUrl}/api/bookings`, {
         method: 'POST',
@@ -147,7 +147,7 @@ export class TrafficSimulatorService {
         body: JSON.stringify({
           tenantId,
           customerId,
-          startAt: new Date(Date.now() + 86400000).toISOString(),
+          startAt: new Date(Date.now() + (startAtOffsetMs ?? 86400000)).toISOString(),
         }),
       });
       if (!res.ok) {
@@ -408,6 +408,70 @@ export class TrafficSimulatorService {
     return {
       success,
       details: `Events sent: 3, Notifications created: ${notifications.length} (Expected: 1)`,
+    };
+  }
+
+  // Verification Test: Reminder Scheduling
+  async verifyReminderScheduling(): Promise<{ success: boolean; details: string }> {
+    this.logger.log(`Running Reminder Scheduling Verification Test...`);
+    const tenantId = `verify-reminder-${Date.now()}`;
+    
+    // Create a booking 3 hours in the future
+    const startAt = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    const booking = await this.prisma.booking.create({
+      data: {
+        tenantId,
+        customerId: 'cust-reminder',
+        status: BookingStatus.CONFIRMED,
+        version: 1,
+        startAt,
+      },
+    });
+
+    const event = {
+      eventId: `event-rem-${Date.now()}`,
+      aggregateId: booking.id,
+      aggregateVersion: 1,
+      tenantId,
+      payload: { bookingId: booking.id },
+    };
+
+    // Trigger confirmation event
+    await this.notificationService.processBookingConfirmedEvent(event);
+
+    // Verify reminder was scheduled for 2 hours before startAt (i.e., 1 hour from now)
+    const notifications = await this.prisma.notification.findMany({
+      where: { bookingId: booking.id, type: NotificationType.BOOKING_REMINDER },
+    });
+
+    if (notifications.length !== 1) {
+      return { success: false, details: `Expected 1 reminder, found ${notifications.length}` };
+    }
+
+    const reminder = notifications[0];
+    const expectedTime = new Date(startAt);
+    expectedTime.setHours(expectedTime.getHours() - 2);
+
+    const isScheduledAtCorrect = Math.abs(reminder.scheduledAt!.getTime() - expectedTime.getTime()) < 1000;
+
+    // Simulate cron fast-forward: update scheduledAt to the past to test cron dispatch
+    await this.prisma.notification.update({
+      where: { id: reminder.id },
+      data: { scheduledAt: new Date(Date.now() - 60000) },
+    });
+
+    // Run cron job
+    await this.notificationService.dispatchScheduledReminders();
+
+    // Check if it was queued (status becomes READY)
+    const updatedReminder = await this.prisma.notification.findUnique({
+      where: { id: reminder.id },
+    });
+
+    const success = isScheduledAtCorrect && updatedReminder?.status === NotificationStatus.READY;
+    return {
+      success,
+      details: `Scheduled correctly: ${isScheduledAtCorrect}, Dispatched to Queue: ${updatedReminder?.status === NotificationStatus.READY}`,
     };
   }
 

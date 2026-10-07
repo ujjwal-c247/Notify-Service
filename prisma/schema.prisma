@@ -27,6 +27,7 @@ enum NotificationStatus {
 
 enum NotificationType {
   BOOKING_CONFIRMATION
+  BOOKING_REMINDER
 }
 
 enum NotificationChannel {

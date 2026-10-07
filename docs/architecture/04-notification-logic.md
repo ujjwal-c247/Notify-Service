@@ -37,5 +37,16 @@ Imagine this scenario:
 2. The "Create" email sits in a queue for 30 seconds.
 3. Customer instantly cancels the booking 5 seconds later.
 
-**Condition:** Right before the worker actually sends the email, it queries the database for the current `Booking.version`. 
 If the current version of the booking is higher than the version the notification was generated for (e.g., DB version is 2, but this email is for version 1), it aborts the send and marks the notification as `EXPIRED`. This prevents sending "Booking Confirmed" emails for cancelled bookings.
+
+### 4. Scheduled Reminders (Database Polling Pattern)
+**File:** `notification.service.ts` -> `dispatchScheduledReminders()`
+
+Instead of dumping future jobs into BullMQ and consuming expensive Redis RAM, long-term reminders are stored in the PostgreSQL database.
+
+**Pattern Flow:**
+1. Upon booking confirmation, a `BOOKING_REMINDER` row is created with a `scheduledAt` timestamp (2 hours before the booking starts). Status is `CREATED`.
+2. A Cron Job runs every minute using `@nestjs/schedule`.
+3. It fetches all `CREATED` notifications where `scheduledAt <= NOW()`.
+4. It updates their status to `READY` and pushes them into the BullMQ queue for immediate processing.
+5. If the booking was cancelled or updated before the reminder was due, the standard Stale Event check (Section 3 above) will catch it when the worker processes the queue, preventing incorrect emails from firing.

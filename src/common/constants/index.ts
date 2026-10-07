@@ -7,7 +7,7 @@ export const KAFKA_GROUPS = {
 } as const;
 
 export const QUEUES = {
-  EMAIL_NOTIFICATIONS: 'email-notifications',
+  EMAIL_NOTIFICATIONS: process.env.NODE_ENV === 'test' ? 'test-email-notifications' : 'email-notifications',
 } as const;
 
 export const JOBS = {

@@ -7,6 +7,7 @@ export interface TrafficSimulatorOptions {
   cancellationRate: number; // percentage (0-100)
   delayMs?: number; // delay between create and cancel
   failureRate?: number; // email failure rate percentage (0-100)
+  startAtOffsetMs?: number; // offset in ms for booking start time
 }
 
 export interface TrafficRunMetrics {

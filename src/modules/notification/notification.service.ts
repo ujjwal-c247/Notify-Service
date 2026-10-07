@@ -11,6 +11,7 @@ import {
   BookingStatus,
 } from '../../common/enums';
 import { ConfigService } from '@nestjs/config';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class NotificationService {
@@ -95,6 +96,38 @@ export class NotificationService {
         },
         `job_${dedupeKey.replace(/:/g, '_')}`,
       );
+    }
+
+    // Schedule 2-hour reminder
+    if (booking.startAt) {
+      const scheduledAt = new Date(booking.startAt);
+      // scheduledAt.setHours(scheduledAt.getHours() - 2);
+      scheduledAt.setMinutes(scheduledAt.getMinutes() - 5);
+
+      // Only schedule if it's in the future
+      if (scheduledAt > new Date()) {
+        const reminderDedupeKey = NotificationPolicy.generateDedupeKey(
+          booking.id,
+          event.aggregateVersion,
+          NotificationType.BOOKING_REMINDER,
+          NotificationChannel.EMAIL,
+        );
+
+        await this.notificationRepo.create({
+          tenantId: booking.tenantId,
+          bookingId: booking.id,
+          bookingVersion: event.aggregateVersion,
+          type: NotificationType.BOOKING_REMINDER,
+          channel: NotificationChannel.EMAIL,
+          dedupeKey: reminderDedupeKey,
+          scheduledAt,
+          payload: {
+            to: `customer-${booking.customerId}@example.com`,
+            subject: `Reminder: Your Booking #${booking.id} is in 2 hours!`,
+            body: `Dear customer, your booking #${booking.id} is starting soon.`,
+          },
+        });
+      }
     }
   }
 
@@ -228,6 +261,26 @@ export class NotificationService {
         `Notification ${notificationId} email failed permanently: ${result.error}. Marked as FAILED.`,
       );
       return { status: 'FAILED' };
+    }
+  }
+
+  @Cron('* * * * *') // Run every minute
+  async dispatchScheduledReminders() {
+    this.logger.debug('Checking for due reminders...');
+    const dueNotifications = await this.notificationRepo.findDueReminders();
+
+    for (const notif of dueNotifications) {
+      this.logger.log(`Dispatching reminder notification ${notif.id} for booking ${notif.bookingId}`);
+      await this.notificationRepo.updateStatus(notif.id, NotificationStatus.READY);
+
+      await this.emailQueue.addEmailJob(
+        {
+          notificationId: notif.id,
+          bookingId: notif.bookingId,
+          bookingVersion: notif.bookingVersion,
+        },
+        `job_${notif.dedupeKey.replace(/:/g, '_')}`,
+      );
     }
   }
 

@@ -95,7 +95,7 @@ describe('Notification System (E2E Tests)', () => {
 
     // Check Notification in DB
     const notification = await prisma.notification.findFirst({
-      where: { bookingId: booking.id },
+      where: { bookingId: booking.id, type: 'BOOKING_CONFIRMATION' },
     });
     expect(notification).toBeDefined();
     expect(notification.status).toBe(NotificationStatus.SENT);

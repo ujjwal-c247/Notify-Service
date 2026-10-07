@@ -13,6 +13,7 @@ export interface CreateNotificationParams {
   dedupeKey: string;
   payload: Record<string, any>;
   expiresAt?: Date;
+  scheduledAt?: Date;
 }
 
 @Injectable()
@@ -47,6 +48,7 @@ export class NotificationRepository {
           dedupeKey: params.dedupeKey,
           payload: params.payload,
           expiresAt: params.expiresAt,
+          scheduledAt: params.scheduledAt,
         },
       });
     } catch (error) {
@@ -118,5 +120,14 @@ export class NotificationRepository {
 
     this.logger.log(`Marked ${count.count} pending notifications as EXPIRED for booking ${bookingId}`);
     return count.count;
+  }
+
+  async findDueReminders() {
+    return this.prisma.notification.findMany({
+      where: {
+        status: NotificationStatus.CREATED,
+        scheduledAt: { lte: new Date() },
+      },
+    });
   }
 }

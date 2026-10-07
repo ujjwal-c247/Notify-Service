@@ -49,8 +49,10 @@ This table tracks the exact lifecycle of a notification (like an email) moving t
 *   `bookingId` / `bookingVersion`: Links back to the exact version of the booking that triggered this notification. If the current DB booking version is higher than this column, we know the notification is stale!
 *   `status` (Enum): Tracks the email (`READY`, `PROCESSING`, `SENT`, `FAILED`, `EXPIRED`, `RETRYING`).
 *   `dedupeKey` (String, `@unique`): **Crucial for idempotency.** Formatted as `bookingId:version:type:channel`. Because Kafka provides *at-least-once* delivery, it might send the same event twice. By making this column unique, the database outright rejects duplicate events, ensuring we never spam a customer.
+*   `scheduledAt` (DateTime?): Used for the Polling/Dispatcher pattern. A reminder is created with a `scheduledAt` in the future. It waits safely in Postgres until a Cron job picks it up.
 *   `attemptCount` (Int) / `lastError` (String): Used to track retries if the external MockEmailProvider fails.
 
 ### Common Queries:
 *   **Upsert / Create**: We use a `create` operation and catch unique constraint violations to silently drop duplicates.
 *   **Status Updates**: When BullMQ finishes a job, it updates the `status` to `SENT` or `FAILED`.
+*   **Polling Reminders**: `SELECT * FROM notifications WHERE status = 'CREATED' AND scheduledAt <= NOW()`. This ensures Redis memory stays flat while the DB holds millions of future reminders securely.

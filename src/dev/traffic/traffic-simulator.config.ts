@@ -7,6 +7,7 @@ export const getTrafficConfig = (overrides: Partial<TrafficSimulatorOptions> = {
   const cancellationRate = overrides.cancellationRate !== undefined ? overrides.cancellationRate : Number(process.env.TRAFFIC_CANCELLATION_RATE || 20);
   const delayMs = overrides.delayMs !== undefined ? overrides.delayMs : Number(process.env.TRAFFIC_DELAY_MS || 0);
   const failureRate = overrides.failureRate !== undefined ? overrides.failureRate : Number(process.env.MOCK_EMAIL_FAILURE_RATE || 0);
+  const startAtOffsetMs = overrides.startAtOffsetMs !== undefined ? overrides.startAtOffsetMs : undefined;
   const apiUrl = process.env.API_URL || 'http://localhost:3000';
 
   return {
@@ -16,6 +17,7 @@ export const getTrafficConfig = (overrides: Partial<TrafficSimulatorOptions> = {
     cancellationRate,
     delayMs,
     failureRate,
+    startAtOffsetMs,
     apiUrl,
   };
 };
