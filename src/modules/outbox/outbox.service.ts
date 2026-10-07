@@ -15,7 +15,7 @@ export interface CreateOutboxEventDto {
 export class OutboxService {
   private readonly logger = new Logger(OutboxService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async createOutboxEvent(
     tx: Prisma.TransactionClient,
@@ -51,6 +51,17 @@ export class OutboxService {
     return this.prisma.outboxEvent.update({
       where: { id },
       data: { attemptCount: { increment: 1 } },
+    });
+  }
+
+  async pruneOldOutboxEvents() {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    return this.prisma.outboxEvent.deleteMany({
+      where: {
+        publishedAt: { lte: sevenDaysAgo },
+      },
     });
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { OutboxService } from './outbox.service';
 import { KafkaProducer } from '../../infrastructure/kafka/kafka.producer';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class OutboxPublisher implements OnModuleInit, OnModuleDestroy {
@@ -11,7 +12,7 @@ export class OutboxPublisher implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly outboxService: OutboxService,
     private readonly kafkaProducer: KafkaProducer,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.timer = setInterval(() => {
@@ -24,6 +25,17 @@ export class OutboxPublisher implements OnModuleInit, OnModuleDestroy {
   onModuleDestroy() {
     if (this.timer) {
       clearInterval(this.timer);
+    }
+  }
+
+  @Cron('0 2 * * *') // Run daily at 2 AM
+  async pruneOldOutboxEvents() {
+    this.logger.log('Running nightly outbox event pruning...');
+    try {
+      await this.outboxService.pruneOldOutboxEvents();
+      this.logger.log('Successfully pruned old outbox events');
+    } catch (error) {
+      this.logger.error('Failed to prune old outbox events', error);
     }
   }
 

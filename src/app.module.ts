@@ -7,6 +7,7 @@ import { BookingModule } from './modules/booking/booking.module';
 import { OutboxModule } from './modules/outbox/outbox.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { TrafficSimulatorModule } from './dev/traffic/traffic-simulator.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 const devModules = process.env.NODE_ENV !== 'production' ? [TrafficSimulatorModule] : [];
 
@@ -16,6 +17,7 @@ const devModules = process.env.NODE_ENV !== 'production' ? [TrafficSimulatorModu
       isGlobal: true,
       envFilePath: '.env',
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     KafkaModule,
     BookingModule,

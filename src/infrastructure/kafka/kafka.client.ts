@@ -44,6 +44,12 @@ export class KafkaClient implements OnModuleInit, OnModuleDestroy {
               topic: KAFKA_TOPICS.BOOKING_EVENTS,
               numPartitions: 3,
               replicationFactor: 1,
+              configEntries: [
+                {
+                  name: 'retention.ms',
+                  value: '259200000' // 3 days in milliseconds
+                }
+              ],
             },
           ],
         });

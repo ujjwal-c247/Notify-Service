@@ -15,7 +15,7 @@ export class EmailQueue implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EmailQueue.name);
   private queue: Queue<EmailJobData>;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   onModuleInit() {
     const connection = getRedisConfig(this.configService);
@@ -30,8 +30,8 @@ export class EmailQueue implements OnModuleInit, OnModuleDestroy {
           type: 'exponential',
           delay: backoffDelay,
         },
-        removeOnComplete: false,
-        removeOnFail: false,
+        removeOnComplete: { age: 3600, count: 1000 },
+        removeOnFail: { age: 604800, count: 5000 }
       },
     });
 

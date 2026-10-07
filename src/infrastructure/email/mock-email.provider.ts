@@ -26,7 +26,7 @@ export interface MockEmailStats {
 export class MockEmailProvider implements EmailProvider {
   private readonly logger = new Logger(MockEmailProvider.name);
   private failureMode: MockFailureMode = 'none';
-  private failureRate: number = 0; // 0 to 100 percentage
+  private failureRate: number = 0;
   public sentEmails: EmailMessage[] = [];
   public attemptRecords: MockEmailRecord[] = [];
 
